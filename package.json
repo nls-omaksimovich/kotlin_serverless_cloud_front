@@ -1,0 +1,10 @@
+{
+  "name": "kotlin-serverless-cloud-front",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@silvermine/serverless-plugin-cloudfront-lambda-edge": "^2.2.3"
+  }
+}

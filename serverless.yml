@@ -3,15 +3,70 @@ service: kotlin-lambda-service
 provider:
   name: aws
   runtime: java17
-  region: us-west-2 # Choose your preferred AWS region
+  region: us-east-1 # Lambda@Edge functions must be deployed in us-east-1
+  stackTags:
+    env: ${opt:stage, 'dev'}
+  versionFunctions: true # optional, default is true
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "lambda:GetFunction"
+          Resource:
+            - "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:${self:service}-${self:custom.stage}-textToSpeechLambda:*"
+            - "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:${self:service}-${self:custom.stage}-textToSpeechLambda"
+        - Effect: "Allow"
+          Action:
+            - "cloudfront:CreateDistribution"
+          Resource: "*"
+
+plugins:
+  - '@silvermine/serverless-plugin-cloudfront-lambda-edge'  # Required plugin for Lambda@Edge
 
 functions:
-  hello:
+  textToSpeech:
     handler: com.example.Handler
-    events:
-      - http:
-          path: text-to-speach
-          method: get
+    lambdaAtEdge:
+      - distribution: 'MyDistribution'
+        eventType: 'viewer-response'
 
 package:
   artifact: build/libs/kotlin_serverless_cloud_front.jar
+  exclude:
+    - 'node_modules/**'
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  awsAccountId: ${aws:accountId}
+  awsRegion: ${self:provider.region}
+
+resources:
+  Resources:
+    MyDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          Comment: "CloudFront Distribution for Lambda@Edge"
+          DefaultCacheBehavior:
+            TargetOriginId: "myS3Origin"
+            ViewerProtocolPolicy: "redirect-to-https"
+            LambdaFunctionAssociations:
+              - EventType: "viewer-request"
+                LambdaFunctionARN:
+                  Fn::Join:
+                    - ':'
+                    - - Fn::GetAtt
+                        - TextToSpeechLambdaFunction
+                        - Arn
+                      - '1'  # Replace with the specific version number after deployment
+            ForwardedValues:
+              QueryString: true
+              Cookies:
+                Forward: "none"
+          Origins:
+            - Id: "myS3Origin"
+              DomainName: "my-bucket.s3.amazonaws.com"
+              S3OriginConfig:
+                OriginAccessIdentity: ""

@@ -1,2 +1,2 @@
 ./gradlew clean shadow
-sls deploy
+sls deploy --stage dev
