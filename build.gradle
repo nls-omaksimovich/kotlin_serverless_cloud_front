@@ -1,0 +1,56 @@
+import org.codehaus.groovy.runtime.GStringImpl
+
+buildscript {
+    ext {
+        sourceCompatibilityVersion = 17
+        jvmTargetVersion = "${sourceCompatibilityVersion}" as GStringImpl
+        kotlinVersion = "1.9.0"
+        jmailenKotlinterVersion = "3.13.0"
+
+        lambdaJavaCore = "1.2.1"
+        lambdaJavaEvents = "3.3.0"
+        shadowPluginVersion = "6.1.0"
+        gsonVersion = "2.10.1"
+
+        kotlinTestVersion = "3.4.2"
+        mockkVersion = "1.13.4"
+        junitJupiterVersion = "5.9.2"
+    }
+}
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version "${kotlinVersion}"
+    id 'com.github.johnrengelman.shadow' version "${shadowPluginVersion}"
+    id "org.jmailen.kotlinter" version "${jmailenKotlinterVersion}"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    implementation "com.google.code.gson:gson:${gsonVersion}"
+    implementation "com.amazonaws:aws-lambda-java-core:${lambdaJavaCore}"
+    implementation "com.amazonaws:aws-lambda-java-events:${lambdaJavaEvents}"
+
+    testImplementation("io.kotlintest:kotlintest-assertions:${kotlinTestVersion}")
+    testImplementation "io.mockk:mockk:${mockkVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitJupiterVersion}"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitJupiterVersion}"
+}
+
+sourceCompatibility = sourceCompatibilityVersion
+
+compileKotlin { kotlinOptions.jvmTarget = "${jvmTargetVersion}" }
+compileTestKotlin { kotlinOptions.jvmTarget = "${jvmTargetVersion}" }
+
+shadowJar {
+    archiveBaseName.set('kotlin_serverless_cloud_front')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+}
+
+test {
+    useJUnitPlatform()
+}

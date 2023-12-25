@@ -1,0 +1,17 @@
+service: kotlin-lambda-service
+
+provider:
+  name: aws
+  runtime: java17
+  region: us-west-2 # Choose your preferred AWS region
+
+functions:
+  hello:
+    handler: com.example.Handler
+    events:
+      - http:
+          path: text-to-speach
+          method: get
+
+package:
+  artifact: build/libs/kotlin_serverless_cloud_front.jar
