@@ -3,38 +3,21 @@ service: kotlin-lambda-service
 provider:
   name: aws
   runtime: java17
-  region: us-east-1 # Lambda@Edge functions must be deployed in us-east-1
+  region: us-west-2
   stackTags:
     env: ${opt:stage, 'dev'}
-  versionFunctions: true # optional, default is true
-  iam:
-    role:
-      statements:
-        - Effect: "Allow"
-          Action:
-            - "lambda:GetFunction"
-          Resource:
-            - "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:${self:service}-${self:custom.stage}-textToSpeechLambda:*"
-            - "arn:aws:lambda:${self:provider.region}:${self:custom.awsAccountId}:function:${self:service}-${self:custom.stage}-textToSpeechLambda"
-        - Effect: "Allow"
-          Action:
-            - "cloudfront:CreateDistribution"
-          Resource: "*"
-
-plugins:
-  - '@silvermine/serverless-plugin-cloudfront-lambda-edge'  # Required plugin for Lambda@Edge
+  versionFunctions: false
 
 functions:
   textToSpeech:
     handler: com.example.Handler
-    lambdaAtEdge:
-      - distribution: 'MyDistribution'
-        eventType: 'viewer-response'
+    events:
+      - http:
+          path: mypath
+          method: get
 
 package:
   artifact: build/libs/kotlin_serverless_cloud_front.jar
-  exclude:
-    - 'node_modules/**'
 
 custom:
   stage: ${opt:stage, self:provider.stage}
@@ -43,30 +26,34 @@ custom:
 
 resources:
   Resources:
-    MyDistribution:
+    MyCloudFrontDistribution:
       Type: AWS::CloudFront::Distribution
       Properties:
         DistributionConfig:
           Enabled: true
-          Comment: "CloudFront Distribution for Lambda@Edge"
-          DefaultCacheBehavior:
-            TargetOriginId: "myS3Origin"
-            ViewerProtocolPolicy: "redirect-to-https"
-            LambdaFunctionAssociations:
-              - EventType: "viewer-request"
-                LambdaFunctionARN:
-                  Fn::Join:
-                    - ':'
-                    - - Fn::GetAtt
-                        - TextToSpeechLambdaFunction
-                        - Arn
-                      - '1'  # Replace with the specific version number after deployment
-            ForwardedValues:
-              QueryString: true
-              Cookies:
-                Forward: "none"
+          Comment: "CloudFront Distribution for my API"
+          DefaultRootObject: ''
           Origins:
-            - Id: "myS3Origin"
-              DomainName: "my-bucket.s3.amazonaws.com"
-              S3OriginConfig:
-                OriginAccessIdentity: ""
+            - Id: "ApiGatewayOrigin"
+              DomainName:
+                Fn::Join:
+                  - ''
+                  - - Ref: ApiGatewayRestApi
+                    - '.execute-api.'
+                    - Ref: AWS::Region
+                    - '.amazonaws.com'
+              CustomOriginConfig:
+                HTTPPort: 80
+                HTTPSPort: 443
+                OriginProtocolPolicy: https-only
+          DefaultCacheBehavior:
+            TargetOriginId: "ApiGatewayOrigin"
+            ViewerProtocolPolicy: "redirect-to-https"
+            AllowedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            CachePolicyId: "202e2ca8-a157-4258-b245-a3f9536b2503" #name=exampleCachePolicyId, it's configured manually
+            OriginRequestPolicyId: "e67b8aa6-7453-476e-9d47-e47703f82f49" #name=exampleOriginRequestPolicyId, it's configured manually
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true

@@ -1,1 +1,1 @@
-sls remove
+sls remove --stage dev
